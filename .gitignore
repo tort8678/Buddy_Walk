@@ -26,3 +26,7 @@ dist-ssr
 .cert
 vite.config.ts
 vite.config.ts
+
+# don't commit firebase service account key (JSON file)
+server/secrets/
+*.json

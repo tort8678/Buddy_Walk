@@ -10,6 +10,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node"
   },
-  "include": ["server/**/*.ts"],
+  "include": ["server/**/*.ts", "server/scripts/firebaseTest.js"],
   "exclude": ["node_modules"]
 }
