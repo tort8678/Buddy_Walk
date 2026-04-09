@@ -17,6 +17,7 @@
     "@mui/icons-material": "^6.4.4",
     "@mui/material": "^6.4.10",
     "axios": "^1.7.3",
+    "bson": "^6.10.4",
     "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -46,6 +47,7 @@
     "react-webcam": "^7.2.0",
     "sharp": "^0.34.5",
     "ts-node": "^10.9.2",
+    "uuid": "^13.0.0",
     "vercel": "^35.2.4",
     "web-speech-cognitive-services": "^8.1.1"
   },

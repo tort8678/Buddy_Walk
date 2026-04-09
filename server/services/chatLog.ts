@@ -3,6 +3,9 @@ import chatLogModel, {
   chatLogInterface,
 } from "../database/models/chatLog";
 import { AppContext } from "../types";
+import mongoose from "mongoose";
+import { FirebaseService } from "./firebase";
+import chatLog from "../database/models/chatLog";
 
 export class ChatLogService {
   async newChatLog(ctx: AppContext, body: chatLogInterface) {
@@ -70,6 +73,66 @@ export class ChatLogService {
       if (result) {
         res.status(200).json({
           message: "Added flag to message",
+          data: result,
+        });
+      }
+    } catch (e) {
+      const error = new Error(`${e}`);
+      res.json({
+        code: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateMessageImageURL(
+    ctx: AppContext,
+    body: { chatlogId: string; messageId: string; imageURL: string },
+  ) {
+    const { res } = ctx;
+    try {
+      const result = await chatLogModel.findOneAndUpdate(
+        { _id: body.chatlogId, "messages._id": body.messageId },
+        { $set: { "messages.$.imageURL": body.imageURL } },
+        { new: true },
+      );
+
+      if (result) {
+        res.status(200).json({
+          message: "Updated message image URL",
+          data: result,
+        });
+      }
+    } catch (e) {
+      const error = new Error(`${e}`);
+      res.json({
+        code: 500,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateMessageImageURLFrames(
+    ctx: AppContext,
+    body: { chatlogId: string; messageId: string; imageURLFrames: string[] },
+  ) {
+    const { res } = ctx;
+
+    try {
+      const result = await chatLogModel.findOneAndUpdate(
+        { _id: body.chatlogId, "messages._id": body.messageId },
+        {
+          $set: {
+            "messages.$.imageURLFrames": body.imageURLFrames,
+            "messages.$.imageURL": body.imageURLFrames[0] || "",
+          },
+        },
+        { new: true },
+      );
+
+      if (result) {
+        res.status(200).json({
+          message: "Updated message image URLs",
           data: result,
         });
       }
