@@ -278,6 +278,21 @@ export const openAITools= [
   //     }
   //   }
   // },
-
-
+  {
+    type: "function" as "function",
+    function: {
+      name: "getLiveBusInformation",
+      description: "Gets real-time arrival data for a specific MTA bus route near the user. Use this when the user asks 'when is the bus coming' or asks about a specific bus line like 'Q55'.",
+      parameters: {
+        type: "object",
+        properties: {
+          routeId: {
+            type: "string",
+            description: "The specific bus route requested by the user, formatted in uppercase (e.g., 'Q55', 'B54', 'M15')."
+          }
+        },
+        required: ["routeId"]
+      }
+    }
+  }
 ]

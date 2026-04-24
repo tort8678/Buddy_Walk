@@ -8,6 +8,19 @@ import fetch from "node-fetch";
 import { addPanoramaDescription, getPanoramaData } from "./doorfront";
 import { getNearbyFeatures } from "./features";
 import { treeInterface, sidewalkMaterialInterface, pedestrianRampInterface } from "../database/models/features";
+import fs from "fs";
+import path from "path";
+
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; 
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+  return R * c; 
+}
 
 dotenv.config();
 
@@ -184,6 +197,90 @@ async function getTrainInfo(url: string) {
   }
   catch (error) {
     console.error(error);
+  }
+}
+
+// Fetches nearby stops and gets exact live arrivals for a specific bus route using Stop ID
+async function getLiveBusArrivals(route: string, userLat: number, userLon: number): Promise<string> {
+  try {
+    const apiKey = process.env.MTA_BUS_API_KEY; 
+    const targetRoute = route.toUpperCase();
+    
+    // Search Radius: 400m (standard) and 1000m (low-density areas)
+    const searchRadii = [400, 1000];
+    let validStops: any[] = [];
+    let usedRadius = 400;
+
+    // --- PHASE 1: ADAPTIVE GEOFENCING ---
+    for (const radius of searchRadii) {
+      usedRadius = radius;
+      
+      const stopsUrl = `http://bustime.mta.info/api/where/stops-for-location.json?lat=${userLat}&lon=${userLon}&radius=${radius}&key=${apiKey}`;
+      const stopsRes = await fetch(stopsUrl);
+      const stopsData = await stopsRes.json();
+
+      if (stopsData?.data?.stops && stopsData.data.stops.length > 0) {
+        // Filter stops that specifically serve the requested route
+        validStops = stopsData.data.stops.filter((stop: any) =>
+          stop.routes.some((r: any) => r.shortName.toUpperCase() === targetRoute)
+        );
+
+        // If valid stops are found, stop searching and proceed to fetch live data
+        if (validStops.length > 0) break;
+      }
+    }
+
+    // Sort valid stops by exact proximity using the Haversine formula
+    validStops.sort((a: any, b: any) => {
+      const distA = getDistance(userLat, userLon, a.lat, a.lon);
+      const distB = getDistance(userLat, userLon, b.lat, b.lon);
+      return distA - distB;
+    });
+
+    if (validStops.length === 0) {
+      return `The ${targetRoute} bus doesn't seem to stop near your current location within 1 kilometer.`;
+    }
+
+    let arrivalInfo = `Live arrivals for ${targetRoute}:\n`;
+    let foundBuses = false;
+    const busRouteId = `MTA NYCT_${targetRoute}`;
+
+    // --- PHASE 2: LIVE MONITORING ---
+    // Check arrival data for the top 2 closest stops to optimize data payload and latency
+    for (let i = 0; i < Math.min(2, validStops.length); i++) {
+      const stopId = validStops[i].code;
+      const stopName = validStops[i].name;
+
+      const monitoringUrl = `http://bustime.mta.info/api/siri/stop-monitoring.json?key=${apiKey}&MonitoringRef=${stopId}&LineRef=${busRouteId}`;
+      const monitorRes = await fetch(monitoringUrl);
+      const monitorData = await monitorRes.json();
+
+      const visits = monitorData?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
+
+      if (visits && visits.length > 0) {
+        foundBuses = true;
+        arrivalInfo += `At ${stopName}:\n`;
+        
+        visits.slice(0, 2).forEach((visit: any) => {
+          const bus = visit.MonitoredVehicleJourney;
+          const destination = bus.DestinationName.split("via")[0].trim();
+          const stopsAway = bus.MonitoredCall?.Extensions?.Distances?.StopsFromCall || 0;
+          const expectedArrival = new Date(bus.MonitoredCall?.ExpectedArrivalTime);
+          const now = new Date();
+          const diffMs = expectedArrival.getTime() - now.getTime();
+          const minutesAway = Math.round(diffMs / 1000 / 60);
+          const timeText = minutesAway <= 1 ? "arriving now" : `in ${minutesAway} minutes`;
+          
+          arrivalInfo += `- Towards ${destination}: ${timeText} (${stopsAway} stops away).\n`;
+        });
+      }
+    }
+
+    return foundBuses ? arrivalInfo : `No active ${targetRoute} buses are currently heading to nearby stops found within ${usedRadius}m.`;
+
+  } catch (error) {
+    console.error("[MTA BUS] Error:", error);
+    return "I'm sorry, I had trouble connecting to the MTA bus service.";
   }
 }
 
@@ -398,6 +495,20 @@ export class OpenAIService {
 
           }
           systemContent += `\n${relevantData}`;
+        }
+        else if (parsedRequest.choices[0].message.tool_calls![0].function.name === "getLiveBusInformation") {
+          completeAIPrompt += "\nUse the live transit data provided to tell the user concisely how far away the requested bus is in terms of stops and presentable distance.";
+          const parsedArgs = JSON.parse(parsedRequest.choices[0].message.tool_calls![0].function.arguments);
+          const route = parsedArgs.routeId?.toUpperCase();
+          if (!route) {
+              relevantData = "Error: No bus route specified.";
+              systemContent += `\n${relevantData}`;
+          } else {
+              console.log(`[Buddy Walk] AI called getLiveBusInformation for route: ${route}`);
+              const busData = await getLiveBusArrivals(route, content.coords.latitude, content.coords.longitude);
+              relevantData = busData;
+              systemContent += `\n${relevantData}`;
+          }
         }
         else if (parsedRequest.choices[0].message.tool_calls![0].function.name === "getNearbyFeatures") {
           const parsedArgs = JSON.parse(parsedRequest.choices[0].message.tool_calls![0].function.arguments);
