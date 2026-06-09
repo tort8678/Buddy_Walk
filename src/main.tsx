@@ -7,6 +7,7 @@ import './index.css'
 import { createBrowserRouter, RouterProvider} from "react-router-dom";
 import Waiver from "./pages/Waiver/index.tsx";
 import Welcome from './pages/home/Welcome.tsx';
+import SelectUI from './pages/selectui/index.tsx';
 
 function NotFound() {
   return (
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
     path: "*",
     element: <NotFound />
   },
+  {
+    path: "/selectui",
+    element: <SelectUI />
+  }
 ])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
