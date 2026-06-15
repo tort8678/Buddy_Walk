@@ -228,7 +228,6 @@ export function useMainActions() {
     (async function () {
       if (openAIResponse !== "") {
         // console.log(openAIResponse)
-        speak(openAIResponse);
         setImage(null);
         setVideoBlob(null);
         try {
