@@ -1,14 +1,7 @@
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { Box, Button, Container, Typography } from "@mui/material";
-import {
-  AccessibleButton,
-  AccessibleTypography,
-  AccessibleTextField,
-  BlueSection,
-  GraySection,
-  GreenSection,
-} from "../main/style.ts";
-import React, { useState } from "react";
+import { Box, Container, Typography } from "@mui/material";
+import { AccessibleButton } from "../main/style.ts";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const theme = createTheme({
@@ -28,6 +21,11 @@ const theme = createTheme({
 
 const SelectUI: React.FC = () => {
   const navigate = useNavigate();
+
+  const chooseMode = (mode: "blind" | "low-vision") => {
+    localStorage.setItem("accessMode", mode);
+    navigate("/main");
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -93,7 +91,7 @@ const SelectUI: React.FC = () => {
                 },
               }}
               aria-label="Blind"
-              onClick={() => navigate("/main")}
+              onClick={() => chooseMode("blind")}
             >
               Blind
             </AccessibleButton>
@@ -109,7 +107,8 @@ const SelectUI: React.FC = () => {
                   outlineOffset: "2px",
                 },
               }}
-              aria-label="Blind"
+              aria-label="Low Vision"
+              onClick={() => chooseMode("low-vision")}
             >
               Low Vision
             </AccessibleButton>
