@@ -160,9 +160,11 @@ export default function LowVisionUI({
                     {isRecording ? "Stop Video" : "Camera"}
                   </Button>
                 )}
-                <AccessibleButton onClick={() => fileInputRef.current?.click()}>
-                  Upload File
-                </AccessibleButton>
+                {!isMobile && (
+                  <AccessibleButton onClick={() => fileInputRef.current?.click()}>
+                    Upload File
+                  </AccessibleButton>
+                )}
               </>
             )}
           </Box>
